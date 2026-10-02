@@ -14,6 +14,33 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  container:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the backend image
+        run: docker build --tag car-api:ci .
+      - name: Verify the image starts without cloud access
+        shell: bash
+        run: |
+          docker run --detach --name car-api-smoke \
+            --publish 127.0.0.1:3001:3001 \
+            --env NODE_ENV=test --env PERSISTENCE_MODE=memory car-api:ci
+          for attempt in {1..20}; do
+            if curl --fail --silent http://127.0.0.1:3001/api/health | jq -e '.status == "ok" and .persistence == "memory"' >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "::error::Backend image did not become healthy"
+          exit 1
+      - name: Clean up the test container
+        if: always()
+        run: |
+          if docker container inspect car-api-smoke >/dev/null 2>&1; then
+            docker logs car-api-smoke
+            docker rm --force car-api-smoke
+          fi
   infrastructure:
     runs-on: ubuntu-latest
     steps:

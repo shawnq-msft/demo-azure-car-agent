@@ -4,6 +4,8 @@ A multilingual React/Vite cockpit with a Node.js/Fastify gateway. The deployment
 
 **Status:** deployment artifacts are provided; no Azure deployment, model availability, platform approval, live speech performance, or billing accuracy is claimed verified. Local simulations must remain visibly labeled. Cloud resource provisioning does not enable the gated integrations below.
 
+Source: [shawnq-msft/demo-azure-car-agent](https://github.com/shawnq-msft/demo-azure-car-agent). GitHub Pages is configured for Actions, but publication remains gated on a verified HTTPS backend. Hosted CI validates the public-registry lockfile, application checks, Bicep and backend image startup.
+
 ## Verified locally and remaining work
 
 - TypeScript checks and frontend/API production builds pass.

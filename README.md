@@ -9,8 +9,8 @@ Source: [shawnq-msft/demo-azure-car-agent](https://github.com/shawnq-msft/demo-a
 ## Verified locally and remaining work
 
 - TypeScript checks and frontend/API production builds pass.
-- 457 unit/integration tests are covered by successful local runs (456 in the full suite, followed by 119 native/gateway tests including one added regression). All 5 Chromium end-to-end tests pass. Coverage includes speech protocols, cancellation, registration without marketing consent, five-language selection, confirmed operations, media acknowledgements, admin gating, diagnostics export and mobile layout.
-- Bicep compiles with zero warnings. No container engine was available for an actual image build; no cloud resources or GitHub Pages site have been deployed.
+- All 457 unit/integration tests and 5 Chromium end-to-end tests pass on a clean GitHub-hosted Node 22 runner. Coverage includes speech protocols, cancellation, registration without marketing consent, five-language selection, confirmed operations, media acknowledgements, admin gating, diagnostics export and mobile layout.
+- Bicep compilation, production builds, public npm dependency installation, and the actual backend container build/startup health check pass in [hosted CI](https://github.com/shawnq-msft/demo-azure-car-agent/actions/runs/37004771160). No Azure resources or GitHub Pages site have been deployed.
 - Work IQ Mockup's 100-query local sample had server execution P95 below 1ms, excluding network and speech-model latency.
 - Official Web IQ MCP discovery and Responses-mediated video search are implemented with offline tests. Search requires an explicit reviewed read-only tool allowlist, enabled credentials and prices, and validates every result against successful MCP source output. Filling a key alone cannot enable it. See [setup instructions](docs/web-iq.md).
 - Voice-to-video acknowledgements, the five-language administrator console/follow-up workflow, content-free session diagnostics and provisional Azure Cost Management queries are implemented. Distributed traces and final-invoice reconciliation are not implemented.

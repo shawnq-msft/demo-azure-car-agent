@@ -4,7 +4,9 @@
 
 The official Bicep CLI compiles `infra/main.bicep` with **zero warnings**. Workflow YAML parsing, API environment/schema mappings and the esbuild contracts-bundling check are local checks only; they do not validate Azure permissions, resource availability or service integration.
 
-The Docker CLI is not installed in the development environment, so an actual container build/smoke test remains unverified. No Azure deployment or live cloud-provider acceptance test has been performed. ARM what-if and deployed runtime checks still require the operator's repository, subscription and authorized configuration.
+The local development environment has no container engine, but [GitHub-hosted CI](https://github.com/shawnq-msft/demo-azure-car-agent/actions/runs/37004771160) successfully built the actual Dockerfile and verified container startup and health in explicit memory/test mode. That run also passed 457 unit/integration tests, five Chromium tests, type checks, production builds and Bicep compilation. The lockfile uses public npm URLs with unchanged package versions/integrity hashes.
+
+The source repository is published and Pages is configured for GitHub Actions. No Azure deployment, live cloud-provider acceptance or Pages publication has occurred. ARM what-if and deployed runtime checks still require an authenticated authorized Azure account, a subscription/resource group, and verified integration configuration.
 
 ## What is and is not deployed
 

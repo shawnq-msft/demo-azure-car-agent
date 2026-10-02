@@ -1,0 +1,27 @@
+.admin-shell { box-sizing: border-box; max-width: 1440px; margin: 0 auto; padding: 24px; color: #e5edf8; background: #101724; min-height: 100vh; font-family: system-ui, sans-serif; }
+.admin-shell * { box-sizing: border-box; }
+.admin-shell h1, .admin-shell h2 { color: #f4f8ff; }
+.admin-shell h1 { font-size: 1.7rem; margin: 0 auto 0 0; }
+.admin-shell h2 { font-size: 1.2rem; }
+.admin-shell a { color: #94d5ff; }
+.admin-toolbar, .admin-filters, .admin-summary { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
+.admin-shell label { display: flex; flex-direction: column; gap: 6px; font-size: .95rem; }
+.admin-shell input, .admin-shell select, .admin-shell textarea { background: #0c1320; color: #f4f8ff; border: 1px solid #6d7f99; border-radius: 7px; padding: 10px; font: inherit; min-height: 42px; }
+.admin-shell textarea { width: 100%; resize: vertical; margin-bottom: 16px; }
+.admin-shell button { color: #f3f8ff; background: #214d72; border: 1px solid #78a5cc; padding: 10px 16px; min-height: 44px; border-radius: 7px; font: inherit; cursor: pointer; }
+.admin-shell button:disabled { opacity: .5; cursor: not-allowed; }
+.admin-shell :focus-visible { outline: 3px solid #ffdb77; outline-offset: 3px; }
+.admin-shell .admin-danger { background: #702b38; border-color: #ff9fae; }
+.admin-disclosure, .admin-shell dt { color: #b9c8dc; }
+.admin-card { padding: 20px; border: 1px solid #42516a; border-radius: 12px; margin: 20px 0; background: #182233; }
+.admin-summary div { min-width: 130px; }
+.admin-shell dd { margin: 4px 0 12px; overflow-wrap: anywhere; }
+.admin-summary dd { font-size: 1.3rem; }
+.admin-filters { align-items: end; margin: 22px 0; }
+.admin-table { overflow-x: auto; }
+.admin-shell table { width: 100%; border-collapse: collapse; text-align: left; }
+.admin-shell th, .admin-shell td { border-bottom: 1px solid #42516a; padding: 12px; vertical-align: top; max-width: 320px; overflow-wrap: anywhere; }
+.admin-detail { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+.admin-shell [role="alert"], .admin-confirm { border: 2px solid #ffb0ae; padding: 16px; }
+.admin-shell form > label { margin-bottom: 14px; }
+@media (max-width: 600px) { .admin-shell { padding: 14px; } .admin-filters > label { width: 100%; } .admin-toolbar { align-items: stretch; } .admin-shell h1 { width: 100%; } }

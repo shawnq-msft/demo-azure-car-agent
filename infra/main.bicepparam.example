@@ -1,0 +1,47 @@
+using './main.bicep'
+
+param location = 'eastus2'
+param namePrefix = 'cardemo'
+param deployApi = false
+param allowedOrigins = 'https://YOUR-ORG.github.io'
+// Deploy the foundation first, put a random signing secret in its Key Vault,
+// then set the URI and an image from this deployment's ACR.
+param authSecretUri = ''
+param apiImage = ''
+// API permissions and the official request schema must also be verified.
+param webIqEndpoint = ''
+param webIqApiKeySecretUri = ''
+param webIqAuthHeader = ''
+param webIqContract = ''
+param webIqVerificationUrl = ''
+param webIqRequestUsd = ''
+
+// Optional providers stay disabled. Every secret URI must reference the same
+// dedicated deployment vault. Never put actual keys in this file or parameters.
+// Rate cards are non-secret JSON strings; use real verified prices/evidence.
+// See apps/api/.env.example and loadConfig for exact rate-card fields/ranges.
+param voiceLiveEndpoint = ''
+param voiceLiveRegion = ''
+param voiceLiveApiKeySecretUri = ''
+param voiceLiveUseManagedIdentity = false
+param voiceLiveWebRtcVerified = false
+param voiceRateCardJson = ''
+
+// GPT-Live uses the API managed identity. Required service access must already
+// exist; these parameters neither provision models nor grant provider roles.
+param gptLiveEndpoint = ''
+param gptLiveDeployment = ''
+param gptLiveRegion = ''
+param gptLiveDeploymentVerified = false
+param gptLiveRateCardJson = ''
+
+param cascadeSpeechRegion = ''
+param cascadeSpeechKeySecretUri = ''
+param cascadeResponsesEndpoint = ''
+param cascadeResponsesKeySecretUri = ''
+param cascadeDeployment = ''
+param cascadeDeploymentVerified = false
+param cascadeRateCardJson = ''
+
+param azureMapsKeySecretUri = ''
+param azureMapsRequestUsd = ''

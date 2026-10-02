@@ -1,0 +1,24 @@
+{
+  "name": "azure-car-agent-demo",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "workspaces": ["apps/*", "packages/*"],
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "dev": "npm run dev --workspace @car/web",
+    "dev:api": "npm run dev --workspace @car/api",
+    "build": "npm run build --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "vitest run",
+    "pretest:e2e": "npm run build --workspace @car/api",
+    "test:e2e": "playwright test",
+    "check": "npm run typecheck && npm test && npm run build"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.55.0",
+    "@types/node": "^22.18.0",
+    "typescript": "~5.9.2",
+    "vitest": "^3.2.4"
+  }
+}

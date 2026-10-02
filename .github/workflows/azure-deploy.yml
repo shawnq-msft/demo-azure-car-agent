@@ -1,0 +1,234 @@
+name: Azure backend (manual OIDC)
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: 'what-if makes no deployment; foundation/deploy create billable resources'
+        type: choice
+        options: [what-if, foundation, deploy]
+        default: what-if
+        required: true
+      resource_group:
+        description: 'Existing dedicated Azure resource group'
+        type: string
+        required: true
+      location:
+        description: 'Approved Azure region (does not provision or validate AI models)'
+        type: string
+        required: true
+      name_prefix:
+        description: '3–12 lowercase letters/digits; keep stable across runs'
+        type: string
+        default: cardemo
+        required: true
+      allowed_origins:
+        description: 'Exact comma-separated HTTPS origins (no path or trailing slash)'
+        type: string
+        required: true
+      auth_secret_uri:
+        description: 'Key Vault HTTPS secret URI, NOT its value; required to deploy API'
+        type: string
+        required: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: azure-${{ inputs.resource_group }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    environment: azure-demo
+    env:
+      RESOURCE_GROUP: ${{ inputs.resource_group }}
+      LOCATION: ${{ inputs.location }}
+      NAME_PREFIX: ${{ inputs.name_prefix }}
+      ALLOWED_ORIGINS: ${{ inputs.allowed_origins }}
+      AUTH_SECRET_URI: ${{ inputs.auth_secret_uri }}
+      OPERATION: ${{ inputs.operation }}
+      ADMIN_TENANT_ID: ${{ vars.ADMIN_TENANT_ID }}
+      ADMIN_AUDIENCE: ${{ vars.ADMIN_AUDIENCE }}
+      ADMIN_CLIENT_ID: ${{ vars.ADMIN_CLIENT_ID }}
+      ADMIN_SCOPE: ${{ vars.ADMIN_SCOPE }}
+      ADMIN_ROLE: ${{ vars.ADMIN_ROLE || 'Lead.Admin' }}
+      AZURE_COST_SCOPE: ${{ vars.AZURE_COST_SCOPE }}
+      # Only non-secret configuration and Key Vault URI references belong in vars.
+      # No arbitrary environment override object or raw provider keys are accepted.
+      VOICE_LIVE_ENDPOINT: ${{ vars.VOICE_LIVE_ENDPOINT }}
+      VOICE_LIVE_REGION: ${{ vars.VOICE_LIVE_REGION }}
+      VOICE_LIVE_USE_MANAGED_IDENTITY: ${{ vars.VOICE_LIVE_USE_MANAGED_IDENTITY || 'false' }}
+      VOICE_LIVE_WEBRTC_VERIFIED: ${{ vars.VOICE_LIVE_WEBRTC_VERIFIED || 'false' }}
+      VOICE_RATE_CARD_JSON: ${{ vars.VOICE_RATE_CARD_JSON }}
+      VOICE_LIVE_API_KEY_SECRET_URI: ${{ vars.VOICE_LIVE_API_KEY_SECRET_URI }}
+      GPT_LIVE_ENDPOINT: ${{ vars.GPT_LIVE_ENDPOINT }}
+      GPT_LIVE_DEPLOYMENT: ${{ vars.GPT_LIVE_DEPLOYMENT }}
+      GPT_LIVE_REGION: ${{ vars.GPT_LIVE_REGION }}
+      GPT_LIVE_DEPLOYMENT_VERIFIED: ${{ vars.GPT_LIVE_DEPLOYMENT_VERIFIED || 'false' }}
+      GPT_LIVE_RATE_CARD_JSON: ${{ vars.GPT_LIVE_RATE_CARD_JSON }}
+      GPT_LIVE_RESPONSES_DELEGATION_VERIFIED: ${{ vars.GPT_LIVE_RESPONSES_DELEGATION_VERIFIED || 'false' }}
+      GPT_LIVE_RESPONSES_RATE_CARD_JSON: ${{ vars.GPT_LIVE_RESPONSES_RATE_CARD_JSON }}
+      CASCADE_SPEECH_REGION: ${{ vars.CASCADE_SPEECH_REGION }}
+      CASCADE_SPEECH_KEY_SECRET_URI: ${{ vars.CASCADE_SPEECH_KEY_SECRET_URI }}
+      CASCADE_RESPONSES_ENDPOINT: ${{ vars.CASCADE_RESPONSES_ENDPOINT }}
+      CASCADE_RESPONSES_KEY_SECRET_URI: ${{ vars.CASCADE_RESPONSES_KEY_SECRET_URI }}
+      CASCADE_DEPLOYMENT: ${{ vars.CASCADE_DEPLOYMENT }}
+      CASCADE_DEPLOYMENT_VERIFIED: ${{ vars.CASCADE_DEPLOYMENT_VERIFIED || 'false' }}
+      CASCADE_RATE_CARD_JSON: ${{ vars.CASCADE_RATE_CARD_JSON }}
+      AZURE_MAPS_KEY_SECRET_URI: ${{ vars.AZURE_MAPS_KEY_SECRET_URI }}
+      AZURE_MAPS_REQUEST_USD: ${{ vars.AZURE_MAPS_REQUEST_USD }}
+      WEB_IQ_ENDPOINT: ${{ vars.WEB_IQ_ENDPOINT }}
+      WEB_IQ_API_KEY_SECRET_URI: ${{ vars.WEB_IQ_API_KEY_SECRET_URI }}
+      WEB_IQ_AUTH_HEADER: ${{ vars.WEB_IQ_AUTH_HEADER }}
+      WEB_IQ_CONTRACT: ${{ vars.WEB_IQ_CONTRACT }}
+      WEB_IQ_VERIFICATION_URL: ${{ vars.WEB_IQ_VERIFICATION_URL }}
+      WEB_IQ_REQUEST_USD: ${{ vars.WEB_IQ_REQUEST_USD }}
+      WEB_IQ_RESPONSES_ENDPOINT: ${{ vars.WEB_IQ_RESPONSES_ENDPOINT }}
+      WEB_IQ_RESPONSES_DEPLOYMENT: ${{ vars.WEB_IQ_RESPONSES_DEPLOYMENT }}
+      WEB_IQ_RESPONSES_KEY_SECRET_URI: ${{ vars.WEB_IQ_RESPONSES_KEY_SECRET_URI }}
+      WEB_IQ_READONLY_TOOLS_JSON: ${{ vars.WEB_IQ_READONLY_TOOLS_JSON }}
+      WEB_IQ_SEARCH_VERIFIED: ${{ vars.WEB_IQ_SEARCH_VERIFIED || 'false' }}
+      WEB_IQ_SEARCH_RATE_CARD_JSON: ${{ vars.WEB_IQ_SEARCH_RATE_CARD_JSON }}
+      KEY_VAULT_URI_VARIABLES: >-
+        AUTH_SECRET_URI VOICE_LIVE_API_KEY_SECRET_URI CASCADE_SPEECH_KEY_SECRET_URI
+        CASCADE_RESPONSES_KEY_SECRET_URI AZURE_MAPS_KEY_SECRET_URI WEB_IQ_API_KEY_SECRET_URI WEB_IQ_RESPONSES_KEY_SECRET_URI
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Validate inputs (no secrets in workflow inputs)
+        shell: bash
+        run: |
+          node --input-type=module -e '
+            if (!/^[a-z][a-z0-9]{2,11}$/.test(process.env.NAME_PREFIX)) throw new Error("Invalid name prefix");
+            if (!/^[a-zA-Z0-9._()-]{1,90}$/.test(process.env.RESOURCE_GROUP)) throw new Error("Invalid resource group");
+            if (!/^[a-z0-9]+$/.test(process.env.LOCATION)) throw new Error("Invalid location");
+            for (const origin of process.env.ALLOWED_ORIGINS.split(",")) {
+              const url = new URL(origin);
+              if (url.protocol !== "https:" || url.origin !== origin) throw new Error("Origins must be exact HTTPS origins");
+            }
+            if (process.env.OPERATION === "deploy" && !process.env.AUTH_SECRET_URI) throw new Error("Set signing-secret URI after foundation deployment");
+            for (const name of process.env.KEY_VAULT_URI_VARIABLES.split(/\s+/)) {
+              if (!process.env[name]) continue;
+              let uri;
+              try { uri = new URL(process.env[name]); }
+              catch { throw new Error(`${name}: expected public Azure Key Vault secret URI`); }
+              if (uri.protocol !== "https:" || !/^[a-zA-Z0-9-]+\.vault\.azure\.net$/.test(uri.hostname) ||
+                  !/^\/secrets\/[a-zA-Z0-9-]+(\/[a-zA-Z0-9]+)?$/.test(uri.pathname) ||
+                  uri.port || uri.username || uri.password || uri.search || uri.hash) throw new Error(`${name}: expected public Azure Key Vault secret URI`);
+            }
+            for (const name of ["VOICE_LIVE_USE_MANAGED_IDENTITY", "VOICE_LIVE_WEBRTC_VERIFIED", "GPT_LIVE_DEPLOYMENT_VERIFIED", "GPT_LIVE_RESPONSES_DELEGATION_VERIFIED", "CASCADE_DEPLOYMENT_VERIFIED", "WEB_IQ_SEARCH_VERIFIED"]) {
+              if (!["true", "false"].includes(process.env[name])) throw new Error(`${name}: expected true or false`);
+            }
+            // Detailed price evidence, schema and range validation remains fail-closed in loadConfig.
+            for (const name of ["VOICE_RATE_CARD_JSON", "GPT_LIVE_RATE_CARD_JSON", "GPT_LIVE_RESPONSES_RATE_CARD_JSON", "CASCADE_RATE_CARD_JSON", "WEB_IQ_SEARCH_RATE_CARD_JSON"]) {
+              if (!process.env[name]) continue;
+              let card;
+              try { card = JSON.parse(process.env[name]); }
+              catch { throw new Error(`${name}: expected JSON object`); }
+              if (!card || typeof card !== "object" || Array.isArray(card)) throw new Error(`${name}: expected JSON object`);
+            }
+          '
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - name: Compile infrastructure
+        run: |
+          az bicep install
+          az bicep build --file infra/main.bicep --stdout > /dev/null
+      - name: Preview foundation without deploying
+        if: inputs.operation == 'what-if'
+        shell: bash
+        run: |
+          az deployment group what-if \
+            --resource-group "$RESOURCE_GROUP" \
+            --template-file infra/main.bicep \
+            --parameters location="$LOCATION" namePrefix="$NAME_PREFIX" \
+              allowedOrigins="$ALLOWED_ORIGINS" deployApi=false
+      - name: Deploy foundation
+        if: inputs.operation != 'what-if'
+        shell: bash
+        run: |
+          az deployment group create --name car-demo-foundation \
+            --resource-group "$RESOURCE_GROUP" \
+            --template-file infra/main.bicep \
+            --parameters location="$LOCATION" namePrefix="$NAME_PREFIX" \
+              allowedOrigins="$ALLOWED_ORIGINS" deployApi=false \
+            --output none
+      - name: Build immutable release in ACR and deploy API
+        if: inputs.operation == 'deploy'
+        shell: bash
+        run: |
+          registry=$(az deployment group show --resource-group "$RESOURCE_GROUP" \
+            --name car-demo-foundation --query properties.outputs.registryName.value --output tsv)
+          server=$(az deployment group show --resource-group "$RESOURCE_GROUP" \
+            --name car-demo-foundation --query properties.outputs.registryServer.value --output tsv)
+          vault=$(az deployment group show --resource-group "$RESOURCE_GROUP" \
+            --name car-demo-foundation --query properties.outputs.vaultName.value --output tsv)
+          # Validate every supplied URI before building the release or deploying the API.
+          VAULT_NAME="$vault" node --input-type=module -e '
+            for (const name of process.env.KEY_VAULT_URI_VARIABLES.split(/\s+/)) {
+              if (!process.env[name]) continue;
+              if (new URL(process.env[name]).hostname !== `${process.env.VAULT_NAME}.vault.azure.net`) {
+                throw new Error(`${name}: secret must reside in this deployment dedicated Key Vault`);
+              }
+            }
+          '
+          az acr build --registry "$registry" --image "car-api:${GITHUB_SHA}" --file Dockerfile .
+          digest=$(az acr repository show --name "$registry" --image "car-api:${GITHUB_SHA}" --query digest --output tsv)
+          image="${server}/car-api@${digest}"
+          admin_parameters=(
+            "adminTenantId=$ADMIN_TENANT_ID" "adminAudience=$ADMIN_AUDIENCE"
+            "adminClientId=$ADMIN_CLIENT_ID" "adminScope=$ADMIN_SCOPE"
+            "adminRole=$ADMIN_ROLE" "azureCostScope=$AZURE_COST_SCOPE"
+          )
+          provider_parameters=(
+            "voiceLiveEndpoint=$VOICE_LIVE_ENDPOINT" "voiceLiveRegion=$VOICE_LIVE_REGION"
+            "voiceLiveUseManagedIdentity=$VOICE_LIVE_USE_MANAGED_IDENTITY"
+            "voiceLiveWebRtcVerified=$VOICE_LIVE_WEBRTC_VERIFIED"
+            "voiceRateCardJson=$VOICE_RATE_CARD_JSON" "voiceLiveApiKeySecretUri=$VOICE_LIVE_API_KEY_SECRET_URI"
+            "gptLiveEndpoint=$GPT_LIVE_ENDPOINT" "gptLiveDeployment=$GPT_LIVE_DEPLOYMENT"
+            "gptLiveRegion=$GPT_LIVE_REGION" "gptLiveDeploymentVerified=$GPT_LIVE_DEPLOYMENT_VERIFIED"
+            "gptLiveRateCardJson=$GPT_LIVE_RATE_CARD_JSON"
+            "gptLiveResponsesDelegationVerified=$GPT_LIVE_RESPONSES_DELEGATION_VERIFIED"
+            "gptLiveResponsesRateCardJson=$GPT_LIVE_RESPONSES_RATE_CARD_JSON"
+            "cascadeSpeechRegion=$CASCADE_SPEECH_REGION" "cascadeSpeechKeySecretUri=$CASCADE_SPEECH_KEY_SECRET_URI"
+            "cascadeResponsesEndpoint=$CASCADE_RESPONSES_ENDPOINT" "cascadeResponsesKeySecretUri=$CASCADE_RESPONSES_KEY_SECRET_URI"
+            "cascadeDeployment=$CASCADE_DEPLOYMENT" "cascadeDeploymentVerified=$CASCADE_DEPLOYMENT_VERIFIED"
+            "cascadeRateCardJson=$CASCADE_RATE_CARD_JSON"
+            "azureMapsKeySecretUri=$AZURE_MAPS_KEY_SECRET_URI" "azureMapsRequestUsd=$AZURE_MAPS_REQUEST_USD"
+            "webIqEndpoint=$WEB_IQ_ENDPOINT" "webIqApiKeySecretUri=$WEB_IQ_API_KEY_SECRET_URI"
+            "webIqAuthHeader=$WEB_IQ_AUTH_HEADER" "webIqContract=$WEB_IQ_CONTRACT"
+            "webIqVerificationUrl=$WEB_IQ_VERIFICATION_URL" "webIqRequestUsd=$WEB_IQ_REQUEST_USD"
+            "webIqResponsesEndpoint=$WEB_IQ_RESPONSES_ENDPOINT" "webIqResponsesDeployment=$WEB_IQ_RESPONSES_DEPLOYMENT"
+            "webIqResponsesKeySecretUri=$WEB_IQ_RESPONSES_KEY_SECRET_URI" "webIqReadonlyToolsJson=$WEB_IQ_READONLY_TOOLS_JSON"
+            "webIqSearchVerified=$WEB_IQ_SEARCH_VERIFIED" "webIqSearchRateCardJson=$WEB_IQ_SEARCH_RATE_CARD_JSON"
+          )
+          az deployment group what-if \
+            --resource-group "$RESOURCE_GROUP" --template-file infra/main.bicep \
+            --parameters location="$LOCATION" namePrefix="$NAME_PREFIX" \
+              allowedOrigins="$ALLOWED_ORIGINS" deployApi=true apiImage="$image" authSecretUri="$AUTH_SECRET_URI" \
+              "${admin_parameters[@]}" "${provider_parameters[@]}"
+          az deployment group create --name car-demo-api \
+            --resource-group "$RESOURCE_GROUP" --template-file infra/main.bicep \
+            --parameters location="$LOCATION" namePrefix="$NAME_PREFIX" \
+              allowedOrigins="$ALLOWED_ORIGINS" deployApi=true apiImage="$image" authSecretUri="$AUTH_SECRET_URI" \
+              "${admin_parameters[@]}" "${provider_parameters[@]}" \
+            --output none
+          url=$(az deployment group show --resource-group "$RESOURCE_GROUP" \
+            --name car-demo-api --query properties.outputs.apiUrl.value --output tsv)
+          curl --fail --silent --show-error --retry 6 --retry-delay 10 --retry-all-errors "${url}/api/health"
+          echo "API deployed. Set repository variable VITE_API_BASE_URL to ${url}, then dispatch Pages." >> "$GITHUB_STEP_SUMMARY"

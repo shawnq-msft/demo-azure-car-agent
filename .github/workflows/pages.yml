@@ -1,0 +1,67 @@
+name: Publish frontend to Pages
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Validate public API origin and choose Pages base
+        env:
+          API_URL: ${{ vars.VITE_API_BASE_URL }}
+          BASE_OVERRIDE: ${{ vars.VITE_BASE_PATH }}
+          REPOSITORY_NAME: ${{ github.event.repository.name }}
+        shell: bash
+        run: |
+          node --input-type=module -e '
+            const url = new URL(process.env.API_URL || "");
+            if (url.protocol !== "https:" || url.username || url.password || url.search || url.hash || url.pathname !== "/") {
+              throw new Error("VITE_API_BASE_URL must be an HTTPS origin, not a secret or path");
+            }
+          '
+          base="${BASE_OVERRIDE:-/${REPOSITORY_NAME}/}"
+          if [[ "$REPOSITORY_NAME" == *.github.io && -z "$BASE_OVERRIDE" ]]; then base="/"; fi
+          if [[ ! "$base" =~ ^/[A-Za-z0-9._/-]*/$ && "$base" != "/" ]]; then
+            echo "::error::VITE_BASE_PATH must start and end with /"; exit 1
+          fi
+          echo "VITE_BASE_PATH=$base" >> "$GITHUB_ENV"
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - name: Build public frontend
+        run: npm run build --workspace @car/web
+        env:
+          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: apps/web/dist
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Publish Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
